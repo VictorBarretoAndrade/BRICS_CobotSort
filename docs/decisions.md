@@ -65,3 +65,24 @@ Each entry: what changed, why, and where it lives.
   in M2 so the adversarial set could run in full; M5 builds the agent tools on top of it.
 - **Bin full** is enforced by the slot allocator before any motion (`BinFullError`).
 - The adversarial set lives in `safety/adversarial.py` so the tests and the benchmark use the same code.
+
+## M3 — Perception
+
+- **Segmentation context without multisampling.** With the default 4× MSAA, edge pixels in the
+  segmentation render blend id colors into ids of other geoms, which stretched some boxes across
+  several cubes. `CellRenderer.segmentation` now uses its own renderer created with
+  `vis.quality.offsamples = 0`.
+- **Dataset region** is slightly larger than the pick area (x 0.25–0.65 m, y ±0.27 m) and cubes keep
+  ≥ 6 cm between centers so rotated cubes never interpenetrate. Class mix is uniform over the 4 classes.
+- **Hard set** (`synth_hard`, 150 images): light tilt up to 60°, diffuse 0.08–1.3, ambient 0.02–0.7 and a
+  per-channel color tint of the lights up to ±0.25 (colored light), otherwise the same randomization.
+- **Training device.** The author's machine has an RTX 3060, so `cobotsort train` ran on the GPU
+  (auto device). Inference in the cell and in the evaluation runs on the **CPU** by default
+  (`COBOTSORT_YOLO_DEVICE` overrides it), and the reported ms/frame are CPU numbers.
+- **Metrics code.** mAP is computed by `perception/evaluate.py` for both detectors (all-point
+  interpolated AP), not by Ultralytics' validator, so HSV and YOLO are scored identically. YOLO's
+  full PR curve uses detections down to confidence 0.001; precision/recall are reported at the cell's
+  operating point (confidence ≥ 0.6, IoU ≥ 0.5). The HSV "confidence" is a heuristic
+  (rectangularity × aspect × size) so it can be ranked for AP.
+- **Localization error** uses each image's true (jittered) camera pose, so it measures the detector
+  and the pixel-to-world model, not the camera calibration error.
