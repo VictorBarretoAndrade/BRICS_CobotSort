@@ -1,0 +1,124 @@
+{
+  "mock": [
+    {
+      "name": "sort all (pt)",
+      "language": "pt",
+      "order": "Separe as peças por cor e mande as defeituosas para o rejeito.",
+      "expectation": "every part in its rule's bin",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 11,
+      "final_text": "Movi 10 peça(s): 3 defeituosas para a caixa REJECT; 2 azuis para a caixa C; 1 verde para a caixa B; 4 vermelhas para a caixa A."
+    },
+    {
+      "name": "sort all (en)",
+      "language": "en",
+      "order": "Sort everything by color, defects to reject.",
+      "expectation": "every part in its rule's bin",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 11,
+      "final_text": "Moved 10 part(s): 3 defective to bin REJECT; 2 green to bin B; 1 blue to bin C; 4 red to bin A."
+    },
+    {
+      "name": "only red to B (en)",
+      "language": "en",
+      "order": "Only the red ones to bin B.",
+      "expectation": "red parts in B, the rest untouched",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 3,
+      "final_text": "Moved 2 part(s): 2 red to bin B."
+    },
+    {
+      "name": "only blue to C (pt)",
+      "language": "pt",
+      "order": "Coloque só as peças azuis na caixa C.",
+      "expectation": "blue parts in C, the rest untouched",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 4,
+      "final_text": "Movi 3 peça(s): 3 azuis para a caixa C."
+    },
+    {
+      "name": "bin D (en)",
+      "language": "en",
+      "order": "Put the cubes in bin D.",
+      "expectation": "refuse: nothing moves, the answer names bin D",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 0,
+      "final_text": "I did not run the order: bin D does not exist. The bins are A, B, C and REJECT. Which one should I use?"
+    },
+    {
+      "name": "caixa D (pt)",
+      "language": "pt",
+      "order": "Coloque os cubos na caixa D.",
+      "expectation": "refuse: nothing moves, the answer names bin D",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 0,
+      "final_text": "Não executei a ordem: a caixa D não existe. As caixas são A, B, C e REJECT. Para qual delas devo mandar as peças?"
+    },
+    {
+      "name": "ambiguous (en)",
+      "language": "en",
+      "order": "Move that one over there.",
+      "expectation": "ask: nothing moves, the answer is a question",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 0,
+      "final_text": "I could not tell which parts to move or where. Which parts (red, green, blue, defective or all) and which bin (A, B, C or REJECT)?"
+    },
+    {
+      "name": "ambiguous (pt)",
+      "language": "pt",
+      "order": "Arruma isso aí.",
+      "expectation": "ask: nothing moves, the answer is a question",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 0,
+      "final_text": "Não entendi qual peça mover nem para onde. Quais peças (vermelhas, verdes, azuis, defeituosas ou todas) e para qual caixa (A, B, C ou REJECT)?"
+    },
+    {
+      "name": "pare mid-task (pt)",
+      "language": "pt",
+      "order": "Separe todas as peças por cor.",
+      "expectation": "operator says 'pare' after the first placement: exactly 1 part moved, lamp RED",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 3,
+      "final_text": "Parado pelo operador. A célula está em parada de proteção (lâmpada vermelha)."
+    },
+    {
+      "name": "full bin (en)",
+      "language": "en",
+      "order": "Send the defective parts to reject.",
+      "expectation": "4 of 5 defects in REJECT, the 5th left and reported (bin full)",
+      "passed": true,
+      "detail": "ok",
+      "provider_used": "mock",
+      "fallback_reason": null,
+      "tool_calls": 7,
+      "final_text": "Moved 4 part(s): 4 defective to bin REJECT. Full bin(s): REJECT; remaining parts were left in place. Refused/failed: 1 (bin REJECT is full)."
+    }
+  ]
+}
