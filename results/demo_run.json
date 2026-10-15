@@ -1,0 +1,22 @@
+{
+  "seed": 7,
+  "detector": "yolo",
+  "provider": "mock",
+  "cubes": 10,
+  "correct": 10,
+  "wrong_bin": 0,
+  "unplanned_contacts": 0,
+  "protective_stops": 0,
+  "placement_error_mean_mm": 0.8532866805318694,
+  "localization_error_mean_mm": 0.8927576186258079,
+  "tool_calls": 11,
+  "sim_time_s": 224.6,
+  "wall_time_s": 25.1,
+  "video": "media/demo.mp4",
+  "video_seconds": 56.8,
+  "video_mb": 4.49,
+  "gif_mb": 1.54,
+  "answer": "Movi 10 peça(s): 4 vermelhas para a caixa A; 2 verdes para a caixa B; 4 azuis para a caixa C.",
+  "order": "Separe as peças por cor e mande as defeituosas para o rejeito.",
+  "command": "cobotsort record --seed 7 --detector yolo --order \"Separe as peças por cor e mande as defeituosas para o rejeito.\" --out media/demo.mp4"
+}
