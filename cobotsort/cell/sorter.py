@@ -383,7 +383,7 @@ def build_cell(
     detector: str = "oracle",
     seed: int | None = 0,
     cfg: CellConfig | None = None,
-    guard: bool = False,
+    guard: bool = True,
     world: SimWorld | None = None,
 ) -> SortingCell:
     """A ready cell: world reset to ``seed``, API connected (not engaged), guard attached."""

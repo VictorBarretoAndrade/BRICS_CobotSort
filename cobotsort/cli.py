@@ -116,7 +116,9 @@ def print_report(cell, report) -> bool:
 def cmd_auto(args: argparse.Namespace) -> int:
     from cobotsort.cell.sorter import build_cell
 
-    cell = build_cell(args.detector, seed=args.seed, cfg=_cell_config(args))
+    cell = build_cell(
+        args.detector, seed=args.seed, cfg=_cell_config(args), guard=not args.no_guard
+    )
     cubes = cell.world.cubes()
     print(
         f"seed {args.seed}: {len(cubes)} cubes, detector {args.detector}, "
@@ -246,6 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--seed", type=int, default=1)
     s.add_argument("--kinematic", action="store_true", help="write joint positions directly")
     s.add_argument("--fast", action="store_true", help="fast (non-collaborative) speeds")
+    s.add_argument("--no-guard", action="store_true", help="disable the SafetyGuard (debug only)")
     s.set_defaults(func=cmd_auto)
 
     s = sub.add_parser("diag", help="gravity / Coriolis torques at home with and without a cube")
