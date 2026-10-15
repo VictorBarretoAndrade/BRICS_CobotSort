@@ -145,3 +145,20 @@ Each entry: what changed, why, and where it lives.
 - **Console encoding.** The CLI reconfigures stdout/stderr to UTF-8 so Portuguese output prints on Windows.
 - **License.** Ultralytics is AGPL-3.0 and a fine-tuned checkpoint is committed, so `pyproject.toml`
   declares AGPL-3.0-or-later. Adding the full license text (a `LICENSE` file) is left to the owner.
+
+## M7 — GUI
+
+- **Threading.** The simulation and control loop run in a worker `QThread`. `SimBackend` takes an optional
+  lock that wraps every physics step and state change; the GUI copies `qpos`/`mocap_pos` under that lock into
+  its own `MjData` and renders the copy. The `mujoco.Renderer` is created and used only in the GUI thread, so a
+  scan in the worker asks the GUI thread for the top-camera image through a signal and waits for it.
+- **E-stop.** The button sets `SimBackend.stop_request`, which interrupts the running motion between two
+  physics steps, and latches the API's E-stop (lamp RED). Recovery is "Reset errors" then "Engage", as in the
+  camp's GUI. Pause holds the worker between steps; Stop ends the automatic cycle after the current part
+  (`SortingCell.run_auto(should_stop=...)`).
+- **Pacing.** The worker paces simulated time to the wall clock with a selectable factor (1×–8×, or max).
+- **Semi-auto selection** belongs to the scan that produced it; executing it after a newer scan is refused.
+- **Self-test.** `cobotsort gui --selftest` drives every mode through the real widgets, writes
+  `results/gui_selftest.md` and saves `media/gui_*.png`. `tests/test_gui.py` runs it on Qt's offscreen
+  platform. The committed screenshots were made offscreen with `QT_QPA_FONTDIR=C:/Windows/Fonts` (the offscreen
+  platform has no font database of its own).

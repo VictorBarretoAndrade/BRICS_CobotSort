@@ -211,6 +211,13 @@ def cmd_semi(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- gui
+def cmd_gui(args: argparse.Namespace) -> int:
+    from cobotsort.gui.app import run_gui
+
+    return run_gui(args.detector, args.seed, selftest=args.selftest)
+
+
 # ---------------------------------------------------------------- diag
 def cmd_diag(args: argparse.Namespace) -> int:
     """Gravity and Coriolis torques (qfrc_bias) at home, with and without a held cube."""
@@ -496,6 +503,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--kinematic", action="store_true")
     s.add_argument("--fast", action="store_true")
     s.set_defaults(func=cmd_record)
+
+    s = sub.add_parser("gui", help="PyQt6 operator GUI: manual, semi-auto, auto, agent, E-stop")
+    s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
+    s.add_argument("--seed", type=int, default=3)
+    s.add_argument(
+        "--selftest",
+        action="store_true",
+        help="drive every mode automatically, save screenshots, then exit",
+    )
+    s.set_defaults(func=cmd_gui)
 
     s = sub.add_parser("diag", help="gravity / Coriolis torques at home with and without a cube")
     s.add_argument("--qd", type=float, default=0.5, help="joint speed for the Coriolis term")

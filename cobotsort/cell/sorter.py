@@ -251,8 +251,13 @@ class SortingCell:
         )
 
     # ------------------------------------------------------------ auto cycle
-    def run_auto(self, max_cycles: int = 40, retries: int = 2) -> SortReport:
-        """Fully automatic sorting until no sortable part remains."""
+    def run_auto(
+        self,
+        max_cycles: int = 40,
+        retries: int = 2,
+        should_stop: Callable[[], bool] | None = None,
+    ) -> SortReport:
+        """Fully automatic sorting until no sortable part remains (or ``should_stop()``)."""
         report = SortReport(self.world.seed, self.detector.name)
         wall0 = time.perf_counter()
         attempts: list[tuple[str, tuple[float, float], int]] = []  # (class, xy, attempts)
@@ -262,6 +267,9 @@ class SortingCell:
         try:
             scan = self.scan()
             for _ in range(max_cycles):
+                if should_stop is not None and should_stop():
+                    report.stop_reason = "stopped by the operator"
+                    break
                 candidates = []
                 for det in scan.detections:
                     near_given_up = any(

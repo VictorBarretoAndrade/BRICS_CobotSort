@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from contextlib import nullcontext
 
 import numpy as np
 
@@ -36,6 +37,16 @@ class SimBackend(RobotBackend):
         self.monitor_every = monitor_every
         self.step_callbacks: list[StepCallback] = []
         self._hold_q = world.q
+        # Set by a GUI: a lock around every MjData change, and an external stop request
+        # (E-stop button) that interrupts the motion between two physics steps.
+        self.lock = None
+        self.stop_request: str | None = None
+
+    def _guard(self):
+        return self.lock if self.lock is not None else nullcontext()
+
+    def clear_stop(self) -> None:
+        self.stop_request = None
 
     # ------------------------------------------------------------ basics
     def connect(self) -> None:
@@ -61,7 +72,8 @@ class SimBackend(RobotBackend):
         return self.motion.kinematic
 
     def _step(self, q_des: np.ndarray, qd_des: np.ndarray | None = None) -> None:
-        self.world.step(q_des, qd_des, kinematic=self.kinematic)
+        with self._guard():
+            self.world.step(q_des, qd_des, kinematic=self.kinematic)
         for cb in self.step_callbacks:
             cb(self.world)
 
@@ -72,6 +84,9 @@ class SimBackend(RobotBackend):
         max_err = 0.0
         for i in range(1, len(traj.t)):
             self._step(traj.q[i], traj.qd[i])
+            if self.stop_request:
+                self.hold()
+                return ExecResult(False, self.world.time - t0, max_err, self.stop_request)
             if i % self.monitor_every == 0 or i == len(traj.t) - 1:
                 err = self.tracking_error(traj.q[i])
                 max_err = max(max_err, err)
@@ -91,7 +106,8 @@ class SimBackend(RobotBackend):
 
     def _settle(self, q_final: np.ndarray, monitor: Monitor | None) -> ExecResult:
         if self.kinematic:
-            self.world.set_robot_q(q_final)
+            with self._guard():
+                self.world.set_robot_q(q_final)
             return ExecResult(True, 0.0, 0.0)
         t0 = self.world.time
         n = 0
@@ -100,12 +116,14 @@ class SimBackend(RobotBackend):
                 break
             self._step(q_final)
             n += 1
-            if monitor and n % self.monitor_every == 0:
+            reason = self.stop_request
+            if not reason and monitor and n % self.monitor_every == 0:
                 reason = monitor(self, q_final)
-                if reason:
-                    self.hold()
-                    return ExecResult(False, self.world.time - t0, 0.0, reason)
-        self.world.forward()
+            if reason:
+                self.hold()
+                return ExecResult(False, self.world.time - t0, 0.0, reason)
+        with self._guard():
+            self.world.forward()
         return ExecResult(True, self.world.time - t0, self.tracking_error(q_final))
 
     def wait(self, seconds: float, monitor: Monitor | None = None) -> ExecResult:
@@ -114,20 +132,23 @@ class SimBackend(RobotBackend):
         while self.world.time - t0 < seconds - 1e-9:
             self._step(self._hold_q)
             n += 1
-            if monitor and n % self.monitor_every == 0:
+            reason = self.stop_request
+            if not reason and monitor and n % self.monitor_every == 0:
                 reason = monitor(self, self._hold_q)
-                if reason:
-                    self.hold()
-                    return ExecResult(False, self.world.time - t0, 0.0, reason)
-        self.world.forward()
+            if reason:
+                self.hold()
+                return ExecResult(False, self.world.time - t0, 0.0, reason)
+        with self._guard():
+            self.world.forward()
         return ExecResult(True, self.world.time - t0)
 
     def hold(self) -> None:
         """Protective stop: freeze the setpoint at the measured position."""
-        self._hold_q = self.world.q
-        self.world.data.ctrl[self.world.info.actuator_ids] = self._hold_q
-        self.world.data.qvel[self.world.info.robot_dof_adr] = 0.0
-        self.world.forward()
+        with self._guard():
+            self._hold_q = self.world.q
+            self.world.data.ctrl[self.world.info.actuator_ids] = self._hold_q
+            self.world.data.qvel[self.world.info.robot_dof_adr] = 0.0
+            self.world.forward()
 
     def tracking_error(self, q_des: np.ndarray) -> float:
         """TCP distance between commanded and measured joints (m)."""
@@ -136,6 +157,10 @@ class SimBackend(RobotBackend):
 
     # ------------------------------------------------------------ vacuum
     def set_vacuum(self, on: bool) -> VacuumResult:
+        with self._guard():
+            return self._set_vacuum(on)
+
+    def _set_vacuum(self, on: bool) -> VacuumResult:
         if not on:
             part = self.world.detach()
             return VacuumResult(False, part, "released" if part is not None else "no part held")
