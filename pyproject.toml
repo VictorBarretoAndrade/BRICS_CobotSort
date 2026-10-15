@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cobotsort"
+version = "0.0.0"
+description = "Simulated collaborative-robot sorting cell: UR5e + vacuum, YOLO on synthetic data, safety layer and an AI operator agent."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Victor Barreto Andrade Gonçalves" }]
+dependencies = [
+    "mujoco>=3.2",
+    "numpy",
+    "opencv-python",
+    "scipy",
+    "ultralytics>=8.3",
+    "anthropic",
+    "python-dotenv",
+    "imageio[ffmpeg]",
+]
+
+[project.optional-dependencies]
+gui = ["PyQt6"]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+cobotsort = "cobotsort.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cobotsort*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
