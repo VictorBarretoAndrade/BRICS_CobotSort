@@ -103,3 +103,28 @@ Each entry: what changed, why, and where it lives.
 - **Placement error** is measured to the nearest slot center of the bin the cube landed in.
 - One `SimWorld`, renderer and detector instance are reused across the seeds of a detector
   (`build_cell(world=..., renderer=...)`) to avoid reloading YOLO and leaking GL contexts.
+
+## M5 — Operator agent
+
+- **Manual tool-use loop** (not the SDK's beta tool runner), because the provider layer, the
+  rule-based fallback and the per-call audit log need control over every turn.
+- **Anthropic request shape.** `claude-sonnet-5-5` (from `COBOTSORT_MODEL`), non-streaming,
+  `max_tokens` 16000, 60 s timeout, 1 SDK retry, `tool_choice={"type": "auto",
+  "disable_parallel_tool_use": true}`, effort `medium` (`COBOTSORT_EFFORT`). Thinking is left at the
+  model's adaptive default (Sonnet 5.5 rejects `{"type": "disabled"}`), and the full assistant content is
+  appended back unchanged. Server-side refusal fallbacks (`fallbacks: "default"`, beta
+  `server-side-fallback-2026-07-01`) are on by default and can be turned off with
+  `COBOTSORT_SERVER_FALLBACK=0`. A `refusal`, `max_tokens`, API error, timeout or missing key switches
+  to the rule-based planner for the rest of the order, and the reason is logged.
+- **Not evaluated with a live key.** No `ANTHROPIC_API_KEY` was available while building, so
+  `results/agent_eval.md` reports the `mock` provider only; the Anthropic loop is covered by tests with a
+  fake client (tool_result ids, `is_error`, fallback on API error and on refusal).
+- **Verification scan in the pick result.** `pick_and_place` already re-scans to verify the placement;
+  that scan is taken after the placement, so it is the latest scan and is returned to the agent. This
+  keeps a 10-part order at 11 tool calls instead of 20 (the budget is 20 calls and 12 picks per order).
+  The guardrail still refuses any older scan id.
+- **Stop.** A stop word in an operator interrupt is executed by code (`stop_cell`) before any further
+  model turn ("the E-stop always wins"); a stop in the order text itself goes through the provider, and
+  the guardrails refuse every motion while a fault or E-stop is active.
+- **Mock planner** picks the first matching object of the latest scan (the automatic cycle in M4 is
+  nearest-first). The bin enum in the tool schema is a hint for the model; the guardrail is the check.

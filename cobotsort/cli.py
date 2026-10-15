@@ -347,6 +347,50 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- agent
+def cmd_agent(args: argparse.Namespace) -> int:
+    """EduBot pattern: a plain-language work order becomes validated tool calls."""
+    from cobotsort.agent.operator import OperatorAgent
+    from cobotsort.cell.sorter import build_cell
+
+    cell = build_cell(args.detector, seed=args.seed, cfg=_cell_config(args))
+    agent = OperatorAgent(cell, provider=args.provider)
+    res = agent.run(args.order)
+    print(f"order: {args.order}")
+    print(
+        f"provider: {res.provider_used}"
+        + (
+            f" (fallback from {res.provider_requested}: {res.fallback_reason})"
+            if res.fallback_reason
+            else ""
+        )
+    )
+    for i, c in enumerate(res.calls, 1):
+        print(f"  {i:2d}. {c['tool']}({c['input']}) -> {c['guard']}")
+    print(f"answer: {res.final_text}")
+    print(f"audit log: {res.audit_path}")
+    print_report_short(cell)
+    return 0
+
+
+def print_report_short(cell) -> None:
+    placed = [(c.class_name, cell.world.bin_of(c.pos)) for c in cell.world.cubes()]
+    in_bins = [p for p in placed if p[1]]
+    print(
+        f"cell: {len(in_bins)}/{len(placed)} parts in bins {in_bins},"
+        f" lamp {cell.api.lamp.state.value},"
+        f" sim time {cell.world.time:.1f} s"
+    )
+
+
+def cmd_agent_eval(args: argparse.Namespace) -> int:
+    from cobotsort.agent.evaluation import run_agent_eval
+
+    run_agent_eval(args.providers, detector=args.detector)
+    print((ROOT / "results" / "agent_eval.md").read_text(encoding="utf-8"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cobotsort", description="CobotSort AI: simulated cobot sorting cell"
@@ -389,6 +433,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--provider", default="mock", choices=["mock", "anthropic"])
     s.set_defaults(func=cmd_benchmark)
+
+    s = sub.add_parser("agent", help="natural-language work order -> safe tool calls")
+    s.add_argument(
+        "order", help='e.g. "Separe as peças por cor e mande as defeituosas para o rejeito."'
+    )
+    s.add_argument(
+        "--provider",
+        default=None,
+        choices=["mock", "anthropic"],
+        help="default: $COBOTSORT_PROVIDER or mock",
+    )
+    s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--kinematic", action="store_true")
+    s.add_argument("--fast", action="store_true")
+    s.set_defaults(func=cmd_agent)
+
+    s = sub.add_parser("agent-eval", help="run the 10 evaluation orders per provider")
+    s.add_argument(
+        "--providers",
+        nargs="+",
+        default=None,
+        choices=["mock", "anthropic"],
+        help="default: mock, plus anthropic when ANTHROPIC_API_KEY is set",
+    )
+    s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
+    s.set_defaults(func=cmd_agent_eval)
 
     s = sub.add_parser("diag", help="gravity / Coriolis torques at home with and without a cube")
     s.add_argument("--qd", type=float, default=0.5, help="joint speed for the Coriolis term")
