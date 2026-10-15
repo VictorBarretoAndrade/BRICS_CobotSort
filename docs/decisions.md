@@ -28,11 +28,11 @@ Each entry: what changed, why, and where it lives.
 - **Two DH tables.** The official UR5e table (d1 = 0.1625, a3 = -0.3922, d4 = 0.1333, d5 = 0.0997,
   d6 = 0.0996) does not match the Menagerie MJCF, whose link offsets are rounded
   (d1 = 0.163, a3 = -0.392, d4 = 0.138 - 0.131 + 0.127 = 0.134, d5 = d6 = 0.1). With fitted base and
-  flange transforms, the official table is off by 0.76 mm RMS and 1.08 mm max on random configurations,
-  which is above the spec's 1 mm bound. `kinematics/dh.py` therefore keeps both tables: the
-  Menagerie-derived one matches MuJoCo to ~1e-12 m with identity base/flange transforms (the DH base
-  frame is the MuJoCo world frame) and is the one under test; the official one is tested to stay
-  within 2.5 mm. Numbers: `pytest tests/test_kinematics.py -k dh`.
+  flange transforms, the official table is off by about 1.1 mm at most on random configurations, which is
+  above the spec's 1 mm bound. `kinematics/dh.py` therefore keeps both tables: the Menagerie-derived one
+  matches MuJoCo to numerical precision with identity base/flange transforms (the DH base frame is the
+  MuJoCo world frame) and is the one under test; the official one is tested to stay within 2.5 mm.
+  Numbers: `cobotsort kinematics-report` → `results/kinematics.md`.
 - **IK.** Internal tolerance is 0.01 mm / 0.0057° (tighter than the spec's 0.1 mm / 0.1°, so the
   test has margin). The adaptive damping fades out as the error shrinks, which fixed convergence on
   near-singular targets. The "100 reachable targets" test samples random joint vectors and keeps
@@ -128,3 +128,20 @@ Each entry: what changed, why, and where it lives.
   the guardrails refuse every motion while a fault or E-stop is active.
 - **Mock planner** picks the first matching object of the latest scan (the automatic cycle in M4 is
   nearest-first). The bin enum in the tool schema is a hint for the model; the guardrail is the check.
+
+## M6 — Demo and docs
+
+- **Video speed-ups.** The spec allows transfer moves at 2×. In collaborative mode a 10-part order takes
+  about 225 s of simulated time, so a 40–60 s video needs more: transfers (MoveJ, parking, scanning) are shown
+  at 6× and approaches (MoveL, vacuum, waits) at 3×. The current factor is always on screen, and the final
+  card shows the simulated time.
+- **Demo order and seed.** The spec's command is used as is (seed 7, YOLO, the Portuguese order). Seed 7 has
+  no defective part, so nothing goes to REJECT in the video; the agent's summary says so implicitly by
+  listing what moved.
+- **GIF**: 10 s from the start of the video, 640 px wide, 10 fps, 128 colors.
+- **IK second round.** `cobotsort kinematics-report` exposed a reachable target (arm hanging below the base)
+  that the default seeds missed (99/100). `IKSolver.solve_all` now retries with 4× more random seeds when the
+  first round finds nothing (100/100). The benchmark, agent evaluation and demo were re-run after this change.
+- **Console encoding.** The CLI reconfigures stdout/stderr to UTF-8 so Portuguese output prints on Windows.
+- **License.** Ultralytics is AGPL-3.0 and a fine-tuned checkpoint is committed, so `pyproject.toml`
+  declares AGPL-3.0-or-later. Adding the full license text (a `LICENSE` file) is left to the owner.
