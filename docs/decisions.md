@@ -50,3 +50,18 @@ Each entry: what changed, why, and where it lives.
   outside the top camera's field of view, so "inside the expected bin" uses a simulated bin presence
   sensor (number of parts resting inside the bin), not the cube's identity.
 - **TCP pick height** is the nominal cube top (0.04 m) + 1 mm; the detectors only provide x, y.
+
+## M2 — Safety layer and signal lamp
+
+- **Lift-off contacts.** A part that was just attached still rests on the table, so its contact with
+  whatever supported it at attach time is allowed until it has risen 5 mm. Without this, every pick
+  triggered a protective stop.
+- **Workspace lower bound.** The spec's box (z ≥ 0.005 m) is applied to every TCP sample; during a
+  flagged final approach to a known part or slot the lower bound is relaxed to 0.
+- **Collision replay** samples the trajectory every 20 ms (≈ 5 mm of TCP travel at 0.25 m/s) and uses
+  `mj_kinematics` + `mj_collision` on a scratch `MjData` (~8 µs per sample). A held part is moved with
+  the TCP during the replay.
+- **Cases 9 and 10 (unknown object id, stale scan id)** are enforced by `agent/guardrails.py`, written
+  in M2 so the adversarial set could run in full; M5 builds the agent tools on top of it.
+- **Bin full** is enforced by the slot allocator before any motion (`BinFullError`).
+- The adversarial set lives in `safety/adversarial.py` so the tests and the benchmark use the same code.
