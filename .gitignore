@@ -1,0 +1,26 @@
+# Tool files (never commit)
+SPEC.md
+CLAUDE.md
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+
+# Large / generated
+third_party/
+data/
+logs/
+runs/
+yolo11n.pt
+yolo26n.pt
