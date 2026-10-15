@@ -22,3 +22,31 @@ Each entry: what changed, why, and where it lives.
   only so parked cubes never collide with it.
 - **Bins are dark gray** with a small colored tag on the far wall. Colored bin walls would sit at the
   edge of the top camera's view and confuse the HSV baseline.
+
+## M1 — Kinematics, motion, vacuum, cell
+
+- **Two DH tables.** The official UR5e table (d1 = 0.1625, a3 = -0.3922, d4 = 0.1333, d5 = 0.0997,
+  d6 = 0.0996) does not match the Menagerie MJCF, whose link offsets are rounded
+  (d1 = 0.163, a3 = -0.392, d4 = 0.138 - 0.131 + 0.127 = 0.134, d5 = d6 = 0.1). With fitted base and
+  flange transforms, the official table is off by 0.76 mm RMS and 1.08 mm max on random configurations,
+  which is above the spec's 1 mm bound. `kinematics/dh.py` therefore keeps both tables: the
+  Menagerie-derived one matches MuJoCo to ~1e-12 m with identity base/flange transforms (the DH base
+  frame is the MuJoCo world frame) and is the one under test; the official one is tested to stay
+  within 2.5 mm. Numbers: `pytest tests/test_kinematics.py -k dh`.
+- **IK.** Internal tolerance is 0.01 mm / 0.0057° (tighter than the spec's 0.1 mm / 0.1°, so the
+  test has margin). The adaptive damping fades out as the error shrinks, which fixed convergence on
+  near-singular targets. The "100 reachable targets" test samples random joint vectors and keeps
+  those with manipulability w ≥ 0.01 (exactly singular poses are reachable only in a measure-zero sense).
+- **Manipulability thresholds** come from `cobotsort calibrate-manip --seeds 5`
+  (`results/manipulability.md`): warn below 0.0405 (5th percentile), block below 0.0157 (half the minimum).
+- **MoveJ also respects the TCP speed limit** (0.25 m/s): when the joint-limited quintic would move
+  the TCP faster, the duration is stretched. **MoveL duration** is the largest of the TCP-speed,
+  TCP-acceleration, tool-rotation and joint-speed bounds; vertical MoveLs are joint-speed limited.
+- **Execution** uses the actuated mode (position servos + velocity feed-forward + gravcomp). The
+  measured tracking error stays below 1 mm, so the `--kinematic` fallback is available but not needed.
+- **Scan pose = home.** Before every scan the arm returns to the home pose, which is outside the top
+  camera's view.
+- **Verification.** "Left the pick area" is checked with the detector on a fresh scan. The bins sit
+  outside the top camera's field of view, so "inside the expected bin" uses a simulated bin presence
+  sensor (number of parts resting inside the bin), not the cube's identity.
+- **TCP pick height** is the nominal cube top (0.04 m) + 1 mm; the detectors only provide x, y.
