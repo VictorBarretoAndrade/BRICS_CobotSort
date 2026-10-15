@@ -111,8 +111,8 @@ class SafetyConfig:
     workspace_z: tuple[float, float] = (0.005, 0.7)
     # Manipulability thresholds (Yoshikawa index). Calibrated with
     # `cobotsort calibrate-manip`; see results/manipulability.md.
-    manip_warn: float = 0.040
-    manip_block: float = 0.015
+    manip_warn: float = 0.0405
+    manip_block: float = 0.0157
     tracking_error_stop: float = 0.010  # m
     speed_tolerance: float = 1.02  # 2% numerical slack on speed checks
     collision_check_dt: float = 0.02  # s between replayed MoveJ samples
