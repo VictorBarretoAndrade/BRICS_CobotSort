@@ -86,3 +86,20 @@ Each entry: what changed, why, and where it lives.
   (rectangularity × aspect × size) so it can be ranked for AP.
 - **Localization error** uses each image's true (jittered) camera pose, so it measures the detector
   and the pixel-to-world model, not the camera calibration error.
+
+## M4 — Cell integration and benchmark
+
+- **Semi-automatic mode** lets the operator override the default rules (any detected part into any
+  existing bin with a free slot); low-confidence parts get a warning but the operator decides. Detection
+  ids are only valid for the scan that printed them. `--commands` runs a scripted session (used in tests).
+- **Benchmark episodes run the automatic cycle (module B)**, not the agent. The `--provider` flag is kept
+  for the spec's command line; the agent's task success per provider is reported in
+  `results/agent_eval.md` (M5).
+- **"Cubes sorted without operator input"** counts only cubes that ended in their rule's bin. With 4 slots
+  per bin and 6–10 random cubes, some seeds have more parts of one class than slots; those parts are
+  flagged and left in place, which lowers this number by design (a full bin refuses the move).
+- **"Episodes completed end to end"** = the cycle ended on its own, with no protective stop, and every cube
+  is in its correct bin.
+- **Placement error** is measured to the nearest slot center of the bin the cube landed in.
+- One `SimWorld`, renderer and detector instance are reused across the seeds of a detector
+  (`build_cell(world=..., renderer=...)`) to avoid reloading YOLO and leaking GL contexts.

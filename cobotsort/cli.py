@@ -129,6 +129,88 @@ def cmd_auto(args: argparse.Namespace) -> int:
     return 0 if ok else 2
 
 
+# ---------------------------------------------------------------- semi
+def print_scan(cell, scan) -> None:
+    print(
+        f"\n{scan.scan_id} ({len(scan.detections)} parts, lamp {cell.api.lamp.state.value}, "
+        f"free slots {cell.slots.free_by_bin()})"
+    )
+    print(f"  {'id':>2}  {'class':10s} {'conf':>5s} {'x_mm':>7s} {'y_mm':>7s}  suggested bin")
+    for i, d in enumerate(scan.detections):
+        target = cell.rules.bin_for(d) or f"-- ({cell.rules.why_not(d)})"
+        print(
+            f"  {i:2d}  {d.class_name:10s} {d.confidence:5.2f} {d.world_xy[0] * 1e3:7.1f} "
+            f"{d.world_xy[1] * 1e3:7.1f}  {target}"
+        )
+
+
+def cmd_semi(args: argparse.Namespace) -> int:
+    """Module A: the operator picks a detected part and a bin; the robot executes safely."""
+    from cobotsort.cell.sorter import build_cell
+    from cobotsort.robot.api import SafetyViolation
+    from cobotsort.robot.backend import CobotError
+
+    cell = build_cell(args.detector, seed=args.seed, cfg=_cell_config(args))
+    cell.api.engage()
+    scripted = [c.strip() for c in args.commands.split(",")] if args.commands else None
+    scan = cell.scan()
+    while True:
+        print_scan(cell, scan)
+        if scripted is not None:
+            if not scripted:
+                break
+            line = scripted.pop(0)
+            print(f"> {line}")
+        else:
+            try:
+                line = input("object_id and bin (e.g. '0 A'), 'r' = rescan, 'q' = quit > ").strip()
+            except EOFError:
+                break
+        if line.lower() in ("q", "quit", "exit"):
+            break
+        if line.lower() in ("r", ""):
+            scan = cell.scan()
+            continue
+        parts = line.replace(":", " ").split()
+        if len(parts) != 2 or not parts[0].isdigit():
+            print("  expected '<object_id> <bin>', e.g. '0 A'")
+            continue
+        obj, bin_name = int(parts[0]), parts[1].upper()
+        if not 0 <= obj < len(scan.detections):
+            print(f"  refused: object {obj} is not in {scan.scan_id}")
+            continue
+        if bin_name not in cell.slots.bins:
+            print(f"  refused: bin {bin_name!r} does not exist ({', '.join(cell.slots.bins)})")
+            continue
+        if cell.slots.free(bin_name) == 0:
+            print(f"  refused: bin {bin_name} is full")
+            continue
+        det = scan.detections[obj]
+        if det.confidence < cell.rules.min_confidence:
+            print(f"  warning: low confidence {det.confidence:.2f}, executing on operator request")
+        try:
+            rec = cell.pick_to_bin(det, bin_name)
+        except (SafetyViolation, CobotError) as exc:
+            print(f"  stopped: {exc} (lamp {cell.api.lamp.state.value})")
+            break
+        print(
+            f"  {'OK' if rec.verified else 'FAILED'}: {rec.class_name} -> {rec.slot} "
+            f"({rec.duration:.1f} s simulated) {'' if rec.verified else rec.reason}"
+        )
+        scan = cell.last_scan or cell.scan()
+    wrong = sum(
+        1
+        for c in cell.world.cubes()
+        if cell.world.bin_of(c.pos) not in (None, cell.rules.mapping.get(c.class_name))
+    )
+    placed = sum(1 for c in cell.world.cubes() if cell.world.bin_of(c.pos) is not None)
+    print(
+        f"\nsession end: {placed} part(s) in bins ({wrong} not in the default rule's bin), "
+        f"sim time {cell.world.time:.1f} s"
+    )
+    return 0
+
+
 # ---------------------------------------------------------------- diag
 def cmd_diag(args: argparse.Namespace) -> int:
     """Gravity and Coriolis torques (qfrc_bias) at home, with and without a held cube."""
@@ -256,6 +338,15 @@ def cmd_eval_vision(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- benchmark
+def cmd_benchmark(args: argparse.Namespace) -> int:
+    from cobotsort.metrics.benchmark import run_benchmark
+
+    run_benchmark(seeds=args.seeds, detectors=args.detector, provider=args.provider)
+    print((ROOT / "results" / "benchmark.md").read_text(encoding="utf-8"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cobotsort", description="CobotSort AI: simulated cobot sorting cell"
@@ -277,6 +368,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--fast", action="store_true", help="fast (non-collaborative) speeds")
     s.add_argument("--no-guard", action="store_true", help="disable the SafetyGuard (debug only)")
     s.set_defaults(func=cmd_auto)
+
+    s = sub.add_parser("semi", help="module A: operator chooses part and bin, robot executes")
+    s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
+    s.add_argument("--seed", type=int, default=3)
+    s.add_argument("--commands", help="non-interactive: comma-separated, e.g. '0 A,r,1 REJECT'")
+    s.add_argument("--kinematic", action="store_true")
+    s.add_argument("--fast", action="store_true")
+    s.set_defaults(func=cmd_semi)
+
+    s = sub.add_parser(
+        "benchmark", help="criteria benchmark: safety > automation > precision > speed"
+    )
+    s.add_argument("--seeds", type=int, default=20)
+    s.add_argument(
+        "--detector",
+        nargs="+",
+        default=["oracle", "hsv", "yolo"],
+        choices=["oracle", "hsv", "yolo"],
+    )
+    s.add_argument("--provider", default="mock", choices=["mock", "anthropic"])
+    s.set_defaults(func=cmd_benchmark)
 
     s = sub.add_parser("diag", help="gravity / Coriolis torques at home with and without a cube")
     s.add_argument("--qd", type=float, default=0.5, help="joint speed for the Coriolis term")

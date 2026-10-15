@@ -107,7 +107,7 @@ class SortingCell:
 
     @property
     def needs_image(self) -> bool:
-        return getattr(self.detector, "needs_image", True)
+        return self.detector.needs_image
 
     def render_top(self) -> np.ndarray:
         if self.renderer is None:
@@ -365,9 +365,7 @@ def make_detector(name: str, world: SimWorld, camera: CameraModel) -> Detector:
     if name == "oracle":
         from cobotsort.perception.oracle import OracleDetector
 
-        det = OracleDetector(world, camera)
-        det.needs_image = False  # type: ignore[attr-defined]
-        return det
+        return OracleDetector(world, camera)
     if name == "hsv":
         from cobotsort.perception.hsv import HSVDetector
 
@@ -380,13 +378,18 @@ def make_detector(name: str, world: SimWorld, camera: CameraModel) -> Detector:
 
 
 def build_cell(
-    detector: str = "oracle",
+    detector: str | Detector = "oracle",
     seed: int | None = 0,
     cfg: CellConfig | None = None,
     guard: bool = True,
     world: SimWorld | None = None,
+    renderer=None,
 ) -> SortingCell:
-    """A ready cell: world reset to ``seed``, API connected (not engaged), guard attached."""
+    """A ready cell: world reset to ``seed``, API connected (not engaged), guard attached.
+
+    ``detector`` is a name (oracle, hsv, yolo) or an instance to reuse; pass ``world`` and
+    ``renderer`` to reuse them across episodes.
+    """
     cfg = cfg or CellConfig()
     world = world or SimWorld(cfg)
     world.reset(seed=seed)
@@ -398,4 +401,5 @@ def build_cell(
     world.forward()
     w, h = cfg.scene.top_cam_size
     camera = CameraModel.from_sim(world.model, world.data, "top_cam", w, h)
-    return SortingCell(world, api, make_detector(detector, world, camera))
+    det = make_detector(detector, world, camera) if isinstance(detector, str) else detector
+    return SortingCell(world, api, det, renderer=renderer)
