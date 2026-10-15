@@ -38,6 +38,7 @@ class Detector(abc.ABC):
     """Anything that turns an RGB image into detections."""
 
     name: str = "detector"
+    needs_image: bool = True  # False for detectors that read the simulator directly
 
     @abc.abstractmethod
     def detect(self, rgb: np.ndarray) -> list[Detection]:

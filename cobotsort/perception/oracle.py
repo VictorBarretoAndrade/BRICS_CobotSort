@@ -13,6 +13,7 @@ class OracleDetector(Detector):
     """Reads cube poses from the simulator; boxes are the projected cube corners."""
 
     name = "oracle"
+    needs_image = False
 
     def __init__(self, world: SimWorld, camera: CameraModel) -> None:
         self.world = world
