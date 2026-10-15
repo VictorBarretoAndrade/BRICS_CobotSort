@@ -54,3 +54,4 @@ The language model never sees coordinates it could change, speeds or limits: its
 | `cell/` | Rules, slots, automatic and semi-automatic cycles, reachability self-check |
 | `agent/` | Tools, guardrails, prompt, providers, operator loop, evaluation |
 | `metrics/` | Benchmark and demo recorder |
+| `gui/app.py` | PyQt6 operator GUI: worker `QThread` for the simulation, `MjData` under a lock, rendering in the GUI thread |

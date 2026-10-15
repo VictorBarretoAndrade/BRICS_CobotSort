@@ -17,7 +17,8 @@ actions.
 ## What it does
 
 - **Sorts parts automatically (module B)**: scan → detect → plan → pick-and-place → re-scan to verify,
-  until no sortable part remains; or part by part on the operator's choice (module A, `cobotsort semi`).
+  until no sortable part remains; or part by part on the operator's choice (module A, in the PyQt6
+  GUI or with `cobotsort semi`).
 - **Detects parts with YOLO11n trained only on synthetic images (module V)**, labeled from segmentation
   renders with domain randomization, and evaluated against a classical HSV baseline.
 - **Integrates the detector into the cell (module G)**: detections become world coordinates through a
@@ -85,6 +86,18 @@ ambiguous orders (must ask), "pare" in the middle of a task (must stop), and a b
 → [`results/demo_run.json`](results/demo_run.json): 10/10 parts in the correct bin, 0 unplanned contacts,
 11 agent tool calls. The video compresses simulated time: transfers at 6×, approaches at 3×, labeled on screen.
 
+### Operator GUI
+
+`cobotsort gui --selftest` → [`results/gui_selftest.md`](results/gui_selftest.md): 11/11 steps pass. The
+self-test drives the real window: an unsafe jog is refused, joint and Cartesian jogs, a semi-automatic pick,
+the automatic cycle started and stopped, an agent order, an E-stop in the middle of a motion, then reset
+errors → engage → home.
+
+![Operator GUI, semi-automatic tab](media/gui_semi.png)
+
+The simulation runs in a worker `QThread`; `MjData` is shared under a lock; the MuJoCo renderer lives only in
+the GUI thread. Screenshots of every tab: `media/gui_*.png`.
+
 ### Kinematics
 
 `cobotsort kinematics-report` → [`results/kinematics.md`](results/kinematics.md) and
@@ -134,8 +147,8 @@ More in [`docs/architecture.md`](docs/architecture.md); every deviation from the
 | Cobot safety, E-stop, signal lamp, reduced speed | [`safety/`](cobotsort/safety) |
 | MoveJ vs MoveL and the pick-and-place sequence | [`motion/`](cobotsort/motion), [`robot/api.py`](cobotsort/robot/api.py) |
 | OOP: `abc.ABC`, dataclasses, exceptions | [`robot/backend.py`](cobotsort/robot/backend.py), [`perception/detector.py`](cobotsort/perception/detector.py) |
-| Threads, the GIL and Lock | `gui/app.py` (milestone M7, not built yet) |
-| Git flow | branches `feat/mX-*`, `--no-ff` merges, tags `v0.0`…`v0.6` |
+| Threads, the GIL and Lock | [`gui/app.py`](cobotsort/gui/app.py) |
+| Git flow | branches `feat/mX-*`, `--no-ff` merges, tags `v0.0`…`v0.7` |
 | HSV, morphology, contours | [`perception/hsv.py`](cobotsort/perception/hsv.py) |
 | CNN/YOLO, labeling, train/val/test, augmentation, overfitting, precision/recall/mAP | [`perception/`](cobotsort/perception) |
 | Modules A, B, V, G | `cobotsort semi`, `cobotsort auto`, `cobotsort dataset / train / eval-vision`, `cobotsort auto --detector yolo` |
@@ -162,7 +175,7 @@ optional; everything runs on the CPU.
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -e ".[dev,gui]"
 python scripts/fetch_assets.py     # sparse-clones the UR5e from MuJoCo Menagerie into third_party/
 cobotsort selfcheck --reach        # loads the scene, checks reachability, saves media/selfcheck.png
 ```
@@ -175,6 +188,7 @@ cobotsort auto --detector yolo --seed 1        # module B: fully automatic sorti
 cobotsort semi --seed 3                        # module A: operator picks part and bin
 cobotsort agent "Only the red ones to bin B."  # natural-language order (mock provider by default)
 cobotsort diag                                 # gravity and Coriolis torques at home
+cobotsort gui                                  # operator GUI: manual, semi-auto, auto, agent, E-stop
 ```
 
 Train and evaluate the detector (module V):
@@ -216,7 +230,6 @@ Notes:
 - A real `Arm95Backend`.
 - Faster R-CNN vs YOLO on small objects.
 - A thermal camera channel in the style of Leak Track.
-- The PyQt6 GUI (milestone M7): manual jog, semi-auto, auto and agent tabs with an E-stop button.
 
 ## Credits and licenses
 
@@ -229,6 +242,7 @@ Notes:
   checkpoint (`models/cobotsort_yolo11n.pt`), so it is distributed under AGPL-3.0 as well
   (`pyproject.toml`): if you modify it and offer it to others, including over a network, you must share
   your source under the same license. Closed-source use would need an Ultralytics Enterprise License.
+- **PyQt6**, GPL-3.0, for the optional operator GUI (`pip install -e ".[gui]"`).
 - Also used: PyTorch, OpenCV, NumPy, SciPy, imageio/FFmpeg, the Anthropic Python SDK, matplotlib.
 
 Author: Victor Barreto Andrade Gonçalves, Computer Engineering, SENAI CIMATEC University (Salvador, Brazil).
