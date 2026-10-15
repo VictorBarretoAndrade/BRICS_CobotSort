@@ -141,6 +141,9 @@ class CobotAPI:
         self.fault = None
         self.warning = None
         self.engaged = False
+        clear = getattr(self.backend, "clear_stop", None)
+        if clear is not None:
+            clear()
         self._emit("reset_errors")
         self._lamp()
 
