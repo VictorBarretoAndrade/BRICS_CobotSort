@@ -229,6 +229,33 @@ def cmd_calibrate_manip(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- perception
+def cmd_dataset(args: argparse.Namespace) -> int:
+    import json
+
+    from cobotsort.perception.make_dataset import make_all
+
+    summary = make_all(n=args.n, n_hard=args.n_hard, seed=args.seed)
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
+def cmd_train(args: argparse.Namespace) -> int:
+    from cobotsort.perception.train_yolo import train
+
+    path = train(epochs=args.epochs, imgsz=args.imgsz, quick=args.quick, device=args.device)
+    print(f"saved {path.relative_to(ROOT)}")
+    return 0
+
+
+def cmd_eval_vision(args: argparse.Namespace) -> int:
+    from cobotsort.perception.evaluate import run
+
+    run()
+    print((ROOT / "results" / "perception.md").read_text(encoding="utf-8"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cobotsort", description="CobotSort AI: simulated cobot sorting cell"
@@ -259,6 +286,22 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--seeds", type=int, default=5)
     s.add_argument("--stride", type=int, default=25)
     s.set_defaults(func=cmd_calibrate_manip)
+
+    s = sub.add_parser("dataset", help="module V: render the synthetic dataset (YOLO format)")
+    s.add_argument("--n", type=int, default=800)
+    s.add_argument("--n-hard", type=int, default=150)
+    s.add_argument("--seed", type=int, default=0)
+    s.set_defaults(func=cmd_dataset)
+
+    s = sub.add_parser("train", help="module V: fine-tune YOLO11n on the synthetic dataset")
+    s.add_argument("--epochs", type=int, default=40)
+    s.add_argument("--imgsz", type=int, default=640)
+    s.add_argument("--quick", action="store_true", help="CPU-friendly: imgsz 480, 12 epochs")
+    s.add_argument("--device", default=None, help="e.g. cpu, 0 (default: auto)")
+    s.set_defaults(func=cmd_train)
+
+    s = sub.add_parser("eval-vision", help="module V: evaluate HSV and YOLO, write results/")
+    s.set_defaults(func=cmd_eval_vision)
     return p
 
 
