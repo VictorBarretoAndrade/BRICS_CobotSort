@@ -14,7 +14,7 @@ Columns follow the competition's judging order: **safety > degree of automation 
 |---|---|---|---|---|
 | oracle | 20 | 176 | 5 | 8.2 |
 | hsv | 20 | 176 | 5 | 8.5 |
-| yolo | 20 | 176 | 5 | 8.5 |
+| yolo | 20 | 176 | 5 | 8.6 |
 
 Definitions:
 

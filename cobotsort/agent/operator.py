@@ -39,6 +39,19 @@ def make_provider(name: str, cfg: AgentConfig) -> Provider:
     raise ProviderError(f"unknown provider {name!r}")
 
 
+def _brief(content: dict) -> str:
+    """One-line summary of a tool result for logs and the video overlay."""
+    if "slot" in content:
+        return f"{content['class_name']} in slot {content['slot']}, verified={content['verified']}"
+    if "objects" in content:
+        return f"{content['scan_id']}: {len(content['objects'])} objects"
+    if "error" in content:
+        return str(content["error"])[:90]
+    if "ack" in content:
+        return f"stopped, lamp {content.get('lamp')}"
+    return "ok"
+
+
 class AuditLog:
     """Append-only JSONL: time, order, provider, tool, input, result and guard decision."""
 
@@ -162,7 +175,8 @@ class OperatorAgent:
                 result.final_text = turn.text
                 break
             call = turn.tool_call
-            self._say(f"{provider.name}: {call.name}({json.dumps(call.input)})")
+            args = " ".join(f"{k}={v}" for k, v in call.input.items())
+            self._say(f"agent ({provider.name}): {call.name} {args}".rstrip())
             outcome = self.executor.execute(call.name, call.input)
             audit.write(
                 provider.name, "tool", call.name, call.input, outcome.content, outcome.guard
@@ -175,7 +189,7 @@ class OperatorAgent:
                     "result": outcome.content,
                 }
             )
-            self._say(f"  -> {outcome.guard}: {json.dumps(outcome.content)[:160]}")
+            self._say(f"  -> {outcome.guard}: {_brief(outcome.content)}")
             provider.add_tool_result(call, outcome.content, outcome.is_error)
         else:
             result.final_text = "Stopped: the turn budget for this order is exhausted."

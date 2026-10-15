@@ -173,12 +173,18 @@ class IKSolver:
         """All distinct solutions from several seeds, closest to ``q_current`` first."""
         rng = rng or np.random.default_rng(0)
         sols: list[IKResult] = []
-        for seed in self.seeds(q_current, n_random, rng):
-            res = self.solve(target, seed)
-            if not res.success:
-                continue
-            if all(np.max(np.abs(res.q - s.q)) > dedup_tol for s in sols):
-                sols.append(res)
+
+        def run(seeds) -> None:
+            for seed in seeds:
+                res = self.solve(target, seed)
+                if res.success and all(np.max(np.abs(res.q - s.q)) > dedup_tol for s in sols):
+                    sols.append(res)
+
+        run(self.seeds(q_current, n_random, rng))
+        if not sols:
+            # Unusual poses (e.g. the arm hanging below the base) can need more random seeds.
+            lo, hi = np.maximum(self.lower, -np.pi), np.minimum(self.upper, np.pi)
+            run(rng.uniform(lo, hi) for _ in range(4 * n_random))
         sols.sort(key=lambda r: float(np.linalg.norm(r.q - q_current)))
         return sols
 

@@ -258,6 +258,13 @@ def cmd_diag(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_kinematics_report(args: argparse.Namespace) -> int:
+    from cobotsort.kinematics.report import run
+
+    print(run(seed=args.seed), end="")
+    return 0
+
+
 # ---------------------------------------------------------------- calibrate-manip
 def cmd_calibrate_manip(args: argparse.Namespace) -> int:
     """Log manipulability along every planned trajectory of normal oracle episodes."""
@@ -391,6 +398,23 @@ def cmd_agent_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- record
+def cmd_record(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from cobotsort.metrics.record import record
+
+    out = Path(args.out)
+    if not out.is_absolute():
+        out = ROOT / out
+    report = record(
+        args.seed, args.detector, args.order, out, provider=args.provider, cfg=_cell_config(args)
+    )
+    for k, v in report.items():
+        print(f"{k:28s} {v}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cobotsort", description="CobotSort AI: simulated cobot sorting cell"
@@ -461,9 +485,25 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
     s.set_defaults(func=cmd_agent_eval)
 
+    s = sub.add_parser("record", help="demo video (MP4) + GIF of an agent order")
+    s.add_argument("--seed", type=int, default=7)
+    s.add_argument("--detector", default="yolo", choices=["oracle", "hsv", "yolo"])
+    s.add_argument(
+        "--order", default="Separe as peças por cor e mande as defeituosas para o rejeito."
+    )
+    s.add_argument("--out", default="media/demo.mp4")
+    s.add_argument("--provider", default=None, choices=["mock", "anthropic"])
+    s.add_argument("--kinematic", action="store_true")
+    s.add_argument("--fast", action="store_true")
+    s.set_defaults(func=cmd_record)
+
     s = sub.add_parser("diag", help="gravity / Coriolis torques at home with and without a cube")
     s.add_argument("--qd", type=float, default=0.5, help="joint speed for the Coriolis term")
     s.set_defaults(func=cmd_diag)
+
+    s = sub.add_parser("kinematics-report", help="DH vs MuJoCo and IK accuracy -> results/")
+    s.add_argument("--seed", type=int, default=0)
+    s.set_defaults(func=cmd_kinematics_report)
 
     s = sub.add_parser("calibrate-manip", help="calibrate manipulability thresholds")
     s.add_argument("--seeds", type=int, default=5)
@@ -489,6 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows consoles default to a legacy code page; the agent speaks Portuguese.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     args = build_parser().parse_args(argv)
     _setup_logging(args.verbose)
     return int(args.func(args) or 0)
