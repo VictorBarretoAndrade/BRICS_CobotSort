@@ -20,19 +20,31 @@ CLASS_BGR: dict[str, tuple[int, int, int]] = {
 
 
 class CellRenderer:
-    """Caches one ``mujoco.Renderer`` per image size.
+    """Caches one ``mujoco.Renderer`` per image size (and one more for segmentation).
 
     Renderers own an OpenGL context, so create and use them in one thread.
     """
 
     def __init__(self, model: mujoco.MjModel) -> None:
         self.model = model
-        self._renderers: dict[tuple[int, int], mujoco.Renderer] = {}
+        self._renderers: dict[tuple[int, int, bool], mujoco.Renderer] = {}
 
-    def _get(self, width: int, height: int) -> mujoco.Renderer:
-        key = (width, height)
+    def _get(self, width: int, height: int, segmentation: bool = False) -> mujoco.Renderer:
+        key = (width, height, segmentation)
         if key not in self._renderers:
-            self._renderers[key] = mujoco.Renderer(self.model, height=height, width=width)
+            if segmentation:
+                # Multisampling blends the id colors at object edges into ids of other
+                # objects, so segmentation gets its own context without it.
+                samples = int(self.model.vis.quality.offsamples)
+                self.model.vis.quality.offsamples = 0
+                try:
+                    r = mujoco.Renderer(self.model, height=height, width=width)
+                finally:
+                    self.model.vis.quality.offsamples = samples
+                r.enable_segmentation_rendering()
+            else:
+                r = mujoco.Renderer(self.model, height=height, width=width)
+            self._renderers[key] = r
         return self._renderers[key]
 
     def rgb(self, data: mujoco.MjData, camera: str | int, width: int, height: int) -> np.ndarray:
@@ -45,13 +57,9 @@ class CellRenderer:
         self, data: mujoco.MjData, camera: str | int, width: int, height: int
     ) -> np.ndarray:
         """Render geom ids (H, W) int32; -1 where no geom is visible."""
-        r = self._get(width, height)
-        r.enable_segmentation_rendering()
-        try:
-            r.update_scene(data, camera=camera)
-            seg = r.render().copy()
-        finally:
-            r.disable_segmentation_rendering()
+        r = self._get(width, height, segmentation=True)
+        r.update_scene(data, camera=camera)
+        seg = r.render().copy()
         ids = seg[..., 0].astype(np.int32)
         ids[seg[..., 1] != int(mujoco.mjtObj.mjOBJ_GEOM)] = -1
         return ids
